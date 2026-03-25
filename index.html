@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RE/LAX — Yapay Zekâ Asistanı</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --blue: #1a3f7a; --blue-light: #2a56a6; --red: #c8271e;
+  --gold: #c9a84c; --bg: #f4f6fa; --surface: #ffffff;
+  --surface2: #eef1f8; --text: #111827; --text2: #4b5563;
+  --text3: #9ca3af; --border: rgba(0,0,0,0.08);
+  --shadow: 0 4px 24px rgba(0,0,0,0.07);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,0.12);
+  --radius: 16px; --radius-sm: 10px;
+}
+[data-theme="dark"] {
+  --bg: #0d1117; --surface: #161b26; --surface2: #1f2937;
+  --text: #f3f4f6; --text2: #9ca3af; --text3: #4b5563;
+  --border: rgba(255,255,255,0.08);
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,0.4);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+
+/* API KEY SCREEN */
+#apiscreen {
+  position: fixed; inset: 0; background: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; padding: 20px;
+}
+.api-card {
+  background: white; border-radius: 24px; padding: 40px;
+  max-width: 420px; width: 100%; text-align: center;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+}
+.api-logo { font-family: 'Playfair Display', serif; font-size: 36px; margin-bottom: 6px; }
+.api-logo .slash { color: var(--gold); }
+.api-logo .lax { color: var(--red); }
+.api-sub { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 28px; }
+.api-card h2 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+.api-card p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 20px; }
+.api-input {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 12px;
+  padding: 12px 16px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+  background: var(--surface2); color: var(--text); outline: none;
+  margin-bottom: 12px; transition: border-color 0.2s;
+}
+.api-input:focus { border-color: var(--blue); }
+.api-btn {
+  width: 100%; padding: 13px; background: var(--blue); color: white;
+  border: none; border-radius: 12px; font-size: 15px;
+  font-family: 'DM Sans', sans-serif; cursor: pointer;
+  font-weight: 500; transition: all 0.2s; margin-bottom: 12px;
+}
+.api-btn:hover { background: var(--blue-light); }
+.api-error { font-size: 12px; color: var(--red); margin-top: 8px; display: none; }
+.api-note { font-size: 11px; color: var(--text3); margin-top: 8px; }
+
+/* MAIN APP */
+#mainapp { display: none; }
+.app {
+  display: grid; grid-template-columns: 280px 1fr;
+  grid-template-rows: 64px 1fr; height: 100vh; overflow: hidden;
+}
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 60px 1fr auto; }
+  .sidebar { display: none; }
+  .sidebar.open { display: flex; position: fixed; inset: 60px 0 0 0; z-index: 100; width: 100%; }
+  .mobile-nav { display: flex !important; }
+  .menu-btn { display: flex !important; }
+}
+.topbar {
+  grid-column: 1 / -1; background: var(--blue);
+  display: flex; align-items: center; padding: 0 20px; gap: 16px; z-index: 50;
+}
+.menu-btn {
+  display: none; width: 34px; height: 34px; border-radius: 8px;
+  border: none; background: rgba(255,255,255,0.12); color: white;
+  cursor: pointer; font-size: 18px; align-items: center; justify-content: center;
+}
+.logo-text { font-family: 'Playfair Display', serif; font-size: 22px; color: white; letter-spacing: 1px; }
+.logo-text .slash { color: var(--gold); }
+.logo-text .lax { color: #ef8080; }
+.logo-sub { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 2px; text-transform: uppercase; display: block; margin-top: 1px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.status-pill { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border-radius: 20px; padding: 5px 12px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.status-text { font-size: 12px; color: rgba(255,255,255,0.8); }
+.theme-btn { width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(255,255,255,0.12); color: white; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.theme-btn:hover { background: rgba(255,255,255,0.2); }
+
+.sidebar {
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-inner { flex: 1; overflow-y: auto; padding: 20px 12px; }
+.nav-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); padding: 0 10px; margin: 16px 0 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: var(--radius-sm); cursor: pointer; font-size: 14px;
+  color: var(--text2); transition: all 0.18s; margin-bottom: 2px;
+  border: 1px solid transparent;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(26,63,122,0.1); color: var(--blue); border-color: rgba(26,63,122,0.15); font-weight: 500; }
+[data-theme="dark"] .nav-item.active { background: rgba(42,86,166,0.2); color: #6fa3e8; border-color: rgba(42,86,166,0.3); }
+.nav-icon { font-size: 17px; width: 22px; text-align: center; }
+.sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
+.brand-badge { background: linear-gradient(135deg, var(--blue), var(--blue-light)); border-radius: 12px; padding: 14px; color: white; }
+.brand-badge .bb-title { font-family: 'Playfair Display', serif; font-size: 16px; letter-spacing: 1px; }
+.brand-badge .bb-sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+.brand-badge .bb-desc { font-size: 12px; opacity: 0.85; margin-top: 8px; line-height: 1.5; }
+
+.main { overflow: hidden; display: flex; flex-direction: column; }
+.panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.panel.active { display: flex; animation: fadeUp 0.3s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.panel-scroll { flex: 1; overflow-y: auto; padding: 24px; }
+@media (max-width: 768px) { .panel-scroll { padding: 16px; } }
+
+.chat-wrap { display: flex; flex-direction: column; height: 100%; }
+.quick-chips { padding: 12px 16px; display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--border); background: var(--surface); }
+.chip { font-size: 12px; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+.chip:hover { background: var(--blue); color: white; border-color: var(--blue); transform: translateY(-1px); }
+.messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.msg { display: flex; gap: 10px; align-items: flex-end; animation: msgIn 0.25s ease; }
+@keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.msg.user { flex-direction: row-reverse; }
+.av { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; font-family: 'Playfair Display', serif; }
+.av.ai { background: var(--blue); color: white; }
+.av.user { background: var(--red); color: white; }
+.bubble { max-width: 72%; padding: 11px 15px; font-size: 14px; line-height: 1.7; border-radius: 18px; }
+.bubble.ai { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; color: var(--text); box-shadow: var(--shadow); }
+.bubble.user { background: var(--blue); color: white; border-bottom-right-radius: 4px; }
+.typing-dots span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--text3); margin: 0 2px; animation: bounce 1.2s infinite; }
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+.chat-input-bar { padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 10px; align-items: flex-end; }
+.chat-input-bar textarea { flex: 1; border: 1.5px solid var(--border); border-radius: 14px; padding: 10px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif; resize: none; min-height: 42px; max-height: 120px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.2s; line-height: 1.5; }
+.chat-input-bar textarea:focus { border-color: var(--blue); }
+.send-btn { width: 42px; height: 42px; border-radius: 14px; background: var(--blue); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+.send-btn:hover { background: var(--blue-light); transform: scale(1.05); }
+.send-btn svg { width: 18px; height: 18px; fill: white; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); transition: transform 0.2s, box-shadow 0.2s; }
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.card-full { grid-column: 1 / -1; }
+.card h3 { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--blue); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+[data-theme="dark"] .card h3 { color: #6fa3e8; }
+.card p, .card li { font-size: 13.5px; color: var(--text2); line-height: 1.75; }
+.card ul { padding-left: 18px; }
+.card li { margin-bottom: 4px; }
+.alert { background: rgba(200,39,30,0.08); border-left: 3px solid var(--red); border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 13px; color: var(--red); }
+
+.semt-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.semt-table th { text-align: left; padding: 10px 14px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); font-weight: 500; }
+.semt-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text2); }
+.semt-table tr:last-child td { border: none; }
+.semt-table tr:hover td { background: var(--surface2); }
+.badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+.badge.high { background: rgba(16,185,129,0.1); color: #059669; }
+.badge.mid { background: rgba(245,158,11,0.1); color: #d97706; }
+.badge.low { background: rgba(239,68,68,0.1); color: #dc2626; }
+
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 700px) { .calc-grid { grid-template-columns: 1fr; } }
+.calc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+.calc-card h3 { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--blue); margin-bottom: 16px; }
+[data-theme="dark"] .calc-card h3 { color: #6fa3e8; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: var(--text3); margin-bottom: 5px; letter-spacing: 0.5px; }
+.field input { width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 13px; font-size: 14px; font-family: 'DM Sans', sans-serif; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.2s; }
+.field input:focus { border-color: var(--blue); }
+.calc-btn { width: 100%; padding: 11px; background: var(--blue); color: white; border: none; border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif; cursor: pointer; font-weight: 500; transition: all 0.2s; margin-top: 4px; }
+.calc-btn:hover { background: var(--blue-light); transform: translateY(-1px); }
+.result-box { margin-top: 16px; background: var(--surface2); border-radius: 12px; padding: 14px; display: none; animation: fadeUp 0.3s ease; }
+.result-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: var(--text2); border-bottom: 1px solid var(--border); }
+.result-row:last-child { border: none; font-weight: 500; font-size: 14px; color: var(--blue); }
+[data-theme="dark"] .result-row:last-child { color: #6fa3e8; }
+
+.faq-item { border-bottom: 1px solid var(--border); }
+.faq-q { width: 100%; text-align: left; padding: 16px 20px; background: none; border: none; cursor: pointer; font-size: 14.5px; color: var(--text); font-family: 'DM Sans', sans-serif; display: flex; justify-content: space-between; align-items: center; transition: color 0.2s; font-weight: 500; }
+.faq-q:hover { color: var(--blue); }
+.faq-icon { font-size: 18px; transition: transform 0.3s; color: var(--text3); }
+.faq-item.open .faq-icon { transform: rotate(45deg); color: var(--blue); }
+.faq-a { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+.faq-a-inner { padding: 0 20px 16px; font-size: 14px; color: var(--text2); line-height: 1.75; }
+
+.mobile-nav { display: none; background: var(--surface); border-top: 1px solid var(--border); padding: 6px 0; justify-content: space-around; }
+.mob-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 12px; border: none; background: none; cursor: pointer; font-size: 10px; color: var(--text3); font-family: 'DM Sans', sans-serif; transition: color 0.2s; }
+.mob-btn.active { color: var(--blue); }
+.mob-btn span:first-child { font-size: 20px; }
+.page-title { padding: 20px 24px 0; font-family: 'Playfair Display', serif; font-size: 22px; color: var(--text); }
+.page-sub { padding: 4px 24px 16px; font-size: 13px; color: var(--text3); }
+@media (max-width: 768px) { .page-title { padding: 16px 16px 0; } .page-sub { padding: 4px 16px 12px; } }
+</style>
+</head>
+<body>
+
+<!-- API KEY SCREEN -->
+<div id="apiscreen">
+  <div class="api-card">
+    <div class="api-logo">RE<span class="slash">/</span><span class="lax">LAX</span></div>
+    <div class="api-sub">Yapay Zekâ Asistanı</div>
+    <h2>API Anahtarı Gerekli</h2>
+    <p>Uygulamayı kullanmak için Anthropic API anahtarınızı girin. Anahtar tarayıcınızda güvenli şekilde saklanır.</p>
+    <input class="api-input" id="apikey-input" type="password" placeholder="sk-ant-api03-...">
+    <button class="api-btn" onclick="startApp()">Başla →</button>
+    <div class="api-error" id="api-error">Geçersiz anahtar, lütfen kontrol edin.</div>
+    <div class="api-note">Anthropic API anahtarınız yoksa console.anthropic.com adresinden ücretsiz alabilirsiniz.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainapp">
+<div class="app">
+  <div class="topbar">
+    <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:36px;height:36px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:14px;color:white;font-weight:600;">R/L</div>
+      <div>
+        <div class="logo-text">RE<span class="slash">/</span><span class="lax">LAX</span></div>
+        <span class="logo-sub">Yapay Zekâ Asistanı</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-pill"><div class="status-dot"></div><span class="status-text">Çevrimiçi</span></div>
+      <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+    </div>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="nav-label">Ana Menü</div>
+      <div class="nav-item active" onclick="showPanel('chat',this)"><span class="nav-icon">💬</span> Danışman</div>
+      <div class="nav-label">Bilgi Bankası</div>
+      <div class="nav-item" onclick="showPanel('tapu',this)"><span class="nav-icon">📋</span> Tapu Rehberi</div>
+      <div class="nav-item" onclick="showPanel('yatirim',this)"><span class="nav-icon">📈</span> Yatırım Analizi</div>
+      <div class="nav-item" onclick="showPanel('semt',this)"><span class="nav-icon">🗺️</span> Semt Fiyatları</div>
+      <div class="nav-label">Araçlar</div>
+      <div class="nav-item" onclick="showPanel('hesap',this)"><span class="nav-icon">🧮</span> Hesaplama</div>
+      <div class="nav-item" onclick="showPanel('sss',this)"><span class="nav-icon">❓</span> Sık Sorulanlar</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="brand-badge">
+        <div class="bb-title">RE/LAX</div>
+        <div class="bb-sub">Yapay Zekâ Asistanı</div>
+        <div class="bb-desc">5 yıllık saha deneyimiyle desteklenen profesyonel gayrimenkul rehberi.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- CHAT -->
+    <div class="panel active" id="panel-chat">
+      <div class="chat-wrap">
+        <div class="quick-chips">
+          <div class="chip" onclick="chip('Tapu devri için hangi belgeler gerekli?')">📋 Tapu belgeleri</div>
+          <div class="chip" onclick="chip('Yatırımlık ev alırken nelere dikkat etmeliyim?')">📈 Yatırım analizi</div>
+          <div class="chip" onclick="chip('Konut kredisi nasıl alınır?')">🏦 Konut kredisi</div>
+          <div class="chip" onclick="chip('Tapu harcı nedir ve nasıl hesaplanır?')">💰 Tapu harcı</div>
+          <div class="chip" onclick="chip('İstanbul\'da hangi semtler yatırım için değerli?')">🗺️ İstanbul semtleri</div>
+          <div class="chip" onclick="chip('Kat mülkiyeti ile kat irtifakı arasındaki fark nedir?')">🏢 Kat mülkiyeti</div>
+        </div>
+        <div class="messages" id="messages">
+          <div class="msg">
+            <div class="av ai">RL</div>
+            <div class="bubble ai">Merhaba! Ben <strong>RE/LAX</strong> Yapay Zekâ Asistanıyım. 🏠<br><br>Gayrimenkul alım-satım, tapu işlemleri, yatırım analizi ve İstanbul piyasası hakkında profesyonel rehberlik sunuyorum.<br><br>Nasıl yardımcı olabilirim?</div>
+          </div>
+        </div>
+        <div class="chat-input-bar">
+          <textarea id="chatinput" placeholder="Sorunuzu yazın..." rows="1"></textarea>
+          <button class="send-btn" onclick="handleSend()">
+            <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAPU -->
+    <div class="panel" id="panel-tapu">
+      <div class="page-title">Tapu Rehberi</div>
+      <div class="page-sub">Türkiye'de tapu işlemleri için kapsamlı rehber</div>
+      <div class="panel-scroll">
+        <div class="grid2">
+          <div class="card">
+            <h3>📋 Tapu Devri Belgeleri</h3>
+            <ul>
+              <li>Nüfus cüzdanı (alıcı ve satıcı)</li>
+              <li>Tapu senedi (satıcıda mevcut)</li>
+              <li>DASK — zorunlu deprem sigortası</li>
+              <li>Belediyeden rayiç bedel belgesi</li>
+              <li>2 adet vesikalık fotoğraf</li>
+              <li>Vergi numarası</li>
+              <li>Tapu harcı banka dekontu</li>
+              <li>Vekâletname (vekil ise noter onaylı)</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>💰 Tapu Harcı ve Masraflar</h3>
+            <p>Satış bedelinin <strong>%4</strong>'ü oranında harç alınır.</p><br>
+            <ul>
+              <li>Alıcı: satış bedeli × %2</li>
+              <li>Satıcı: satış bedeli × %2</li>
+              <li>Döner sermaye: ~₺750–1.200</li>
+              <li>DASK: yıllık ₺500–2.000 arası</li>
+            </ul>
+            <div class="alert">⚠️ Gerçek satış bedelinden düşük göstermek yasal değildir.</div>
+          </div>
+          <div class="card">
+            <h3>🏢 Kat Mülkiyeti vs Kat İrtifakı</h3>
+            <p><strong>Kat Mülkiyeti:</strong> İskan belgesi alınmış, yapı tamamlanmış. En güvenli seçenek.</p><br>
+            <p><strong>Kat İrtifakı:</strong> Yapı tamamlanmamış ya da iskan yok. Banka kredisi zor, risk var.</p><br>
+            <p><strong>Arsa Tapusu:</strong> Sadece arsa payı var. Dikkatli olunmalı.</p>
+          </div>
+          <div class="card">
+            <h3>⚠️ Kritik Kontroller</h3>
+            <ul>
+              <li>İpotek, haciz, şerh durumu</li>
+              <li>İmar durumu ve plan notu</li>
+              <li>Yapı ruhsatı ve iskan belgesi</li>
+              <li>Tapu kütüğündeki beyanlar</li>
+              <li>Enerji kimlik belgesi (EKB)</li>
+              <li>Borcun bulunmadığına dair belediye yazısı</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- YATIRIM -->
+    <div class="panel" id="panel-yatirim">
+      <div class="page-title">Yatırım Analizi</div>
+      <div class="page-sub">Gayrimenkul yatırımında bilinmesi gereken her şey</div>
+      <div class="panel-scroll">
+        <div class="grid2">
+          <div class="card">
+            <h3>📊 Temel Yatırım Kriterleri</h3>
+            <ul>
+              <li>Brüt kira getirisi yıllık %4–6 olmalı</li>
+              <li>Geri dönüş süresi idealde 15–20 yıl</li>
+              <li>Metro/ulaşım aksı ≤500m mesafe</li>
+              <li>Okul, hastane, AVM yakınlığı</li>
+              <li>Net kullanım alanı yüksek daireler</li>
+              <li>Düşük aylık aidat avantajlı</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>⚡ Değer Artışını Etkileyen Faktörler</h3>
+            <ul>
+              <li>Yeni metro/metrobüs hattı açılışı</li>
+              <li>Kentsel dönüşüm projesi varlığı</li>
+              <li>Bölgeye yeni AVM veya hastane</li>
+              <li>Üniversite kampüsü yakınlığı</li>
+              <li>Sahil veya yeşil alan erişimi</li>
+              <li>Yabancı yatırımcı ilgisi</li>
+            </ul>
+          </div>
+          <div class="card card-full">
+            <h3>🏆 Yatırım Stratejileri</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:8px;">
+              <div style="background:var(--surface2);border-radius:12px;padding:16px;">
+                <div style="font-size:22px;margin-bottom:8px;">🔄</div>
+                <div style="font-size:14px;font-weight:500;margin-bottom:6px;color:var(--text)">Al-Kirala</div>
+                <div style="font-size:12px;color:var(--text3);line-height:1.6">Uzun vadeli kira geliri. İstikrarlı, düşük risk.</div>
+              </div>
+              <div style="background:var(--surface2);border-radius:12px;padding:16px;">
+                <div style="font-size:22px;margin-bottom:8px;">🚀</div>
+                <div style="font-size:14px;font-weight:500;margin-bottom:6px;color:var(--text)">Al-Sat</div>
+                <div style="font-size:12px;color:var(--text3);line-height:1.6">Kısa vadeli değer artışı. Gelişme bölgeleri.</div>
+              </div>
+              <div style="background:var(--surface2);border-radius:12px;padding:16px;">
+                <div style="font-size:22px;margin-bottom:8px;">🏖️</div>
+                <div style="font-size:14px;font-weight:500;margin-bottom:6px;color:var(--text)">Günlük Kiralama</div>
+                <div style="font-size:12px;color:var(--text3);line-height:1.6">Yüksek getiri, turistik bölge şart.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEMT -->
+    <div class="panel" id="panel-semt">
+      <div class="page-title">İstanbul Semt Fiyatları</div>
+      <div class="page-sub">2024–2025 tahmini m² fiyat aralıkları ve yatırım potansiyeli</div>
+      <div class="panel-scroll">
+        <div class="card" style="margin-bottom:20px;">
+          <h3>🌊 Avrupa Yakası</h3>
+          <table class="semt-table">
+            <thead><tr><th>Semt</th><th>m² Fiyatı (₺)</th><th>Yatırım</th><th>Not</th></tr></thead>
+            <tbody>
+              <tr><td>Beşiktaş</td><td>180.000–350.000</td><td><span class="badge low">Düşük</span></td><td>Merkezi, lüks segment</td></tr>
+              <tr><td>Başakşehir</td><td>60.000–120.000</td><td><span class="badge high">Yüksek</span></td><td>Gelişme bölgesi, metro avantajı</td></tr>
+              <tr><td>Esenyurt</td><td>35.000–70.000</td><td><span class="badge high">Yüksek</span></td><td>Uygun fiyat, kira talebi güçlü</td></tr>
+              <tr><td>Beylikdüzü</td><td>45.000–90.000</td><td><span class="badge high">Yüksek</span></td><td>Metrobüs hattı, gelişiyor</td></tr>
+              <tr><td>Şişli</td><td>120.000–220.000</td><td><span class="badge mid">Orta</span></td><td>Ticari alan yoğun</td></tr>
+              <tr><td>Sarıyer</td><td>150.000–400.000</td><td><span class="badge low">Düşük</span></td><td>Lüks, düşük kira getirisi</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>🌁 Anadolu Yakası</h3>
+          <table class="semt-table">
+            <thead><tr><th>Semt</th><th>m² Fiyatı (₺)</th><th>Yatırım</th><th>Not</th></tr></thead>
+            <tbody>
+              <tr><td>Kadıköy</td><td>160.000–300.000</td><td><span class="badge mid">Orta</span></td><td>Kira istikrarlı, değer yüksek</td></tr>
+              <tr><td>Ümraniye</td><td>70.000–130.000</td><td><span class="badge high">Yüksek</span></td><td>Metro hattı değer kattı</td></tr>
+              <tr><td>Kartal</td><td>60.000–120.000</td><td><span class="badge high">Yüksek</span></td><td>Dönüşüm bölgesi, marina projesi</td></tr>
+              <tr><td>Maltepe</td><td>80.000–150.000</td><td><span class="badge high">Yüksek</span></td><td>Sahil şeridi, ulaşım güçlü</td></tr>
+              <tr><td>Üsküdar</td><td>120.000–220.000</td><td><span class="badge mid">Orta</span></td><td>Köprü aksı, tarihi doku</td></tr>
+              <tr><td>Çekmeköy</td><td>50.000–95.000</td><td><span class="badge high">Yüksek</span></td><td>Metro geldi, gelişme sürüyor</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- HESAPLAMA -->
+    <div class="panel" id="panel-hesap">
+      <div class="page-title">Hesaplama Araçları</div>
+      <div class="page-sub">Tapu harcı, kira getirisi ve konut kredisi hesaplama</div>
+      <div class="panel-scroll">
+        <div class="calc-grid">
+          <div class="calc-card">
+            <h3>🏷️ Tapu Harcı</h3>
+            <div class="field"><label>Satış Bedeli (₺)</label><input type="number" id="t-bedel" placeholder="3000000"></div>
+            <button class="calc-btn" onclick="calcTapu()">Hesapla</button>
+            <div class="result-box" id="t-result">
+              <div class="result-row"><span>Alıcı payı (%2)</span><span id="t-alici"></span></div>
+              <div class="result-row"><span>Satıcı payı (%2)</span><span id="t-satici"></span></div>
+              <div class="result-row"><span>Döner sermaye</span><span>~₺1.000</span></div>
+              <div class="result-row"><span>Toplam maliyet</span><span id="t-toplam"></span></div>
+            </div>
+          </div>
+          <div class="calc-card">
+            <h3>📊 Kira Getirisi</h3>
+            <div class="field"><label>Emlak Değeri (₺)</label><input type="number" id="k-deger" placeholder="3000000"></div>
+            <div class="field"><label>Aylık Kira (₺)</label><input type="number" id="k-aylik" placeholder="15000"></div>
+            <button class="calc-btn" onclick="calcKira()">Hesapla</button>
+            <div class="result-box" id="k-result">
+              <div class="result-row"><span>Yıllık kira geliri</span><span id="k-yillik"></span></div>
+              <div class="result-row"><span>Brüt getiri oranı</span><span id="k-getiri"></span></div>
+              <div class="result-row"><span>Geri dönüş süresi</span><span id="k-geri"></span></div>
+            </div>
+          </div>
+          <div class="calc-card" style="grid-column:1/-1">
+            <h3>🏦 Konut Kredisi</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+              <div class="field"><label>Kredi Tutarı (₺)</label><input type="number" id="kr-tutar" placeholder="2000000"></div>
+              <div class="field"><label>Faiz Oranı (aylık %)</label><input type="number" id="kr-faiz" placeholder="3.50" step="0.01"></div>
+              <div class="field"><label>Vade (Ay)</label><input type="number" id="kr-vade" placeholder="120"></div>
+            </div>
+            <button class="calc-btn" onclick="calcKredi()">Hesapla</button>
+            <div class="result-box" id="kr-result">
+              <div class="result-row"><span>Aylık taksit</span><span id="kr-taksit"></span></div>
+              <div class="result-row"><span>Toplam geri ödeme</span><span id="kr-toplam"></span></div>
+              <div class="result-row"><span>Toplam faiz maliyeti</span><span id="kr-faiz-toplam"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SSS -->
+    <div class="panel" id="panel-sss">
+      <div class="page-title">Sık Sorulan Sorular</div>
+      <div class="page-sub">Gayrimenkul işlemlerinde en çok merak edilenler</div>
+      <div class="panel-scroll">
+        <div class="card" style="padding:0;overflow:hidden;"><div id="faq"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mobile-nav" id="mobnav">
+    <button class="mob-btn active" onclick="mobNav('chat',this)"><span>💬</span>Danışman</button>
+    <button class="mob-btn" onclick="mobNav('tapu',this)"><span>📋</span>Tapu</button>
+    <button class="mob-btn" onclick="mobNav('semt',this)"><span>🗺️</span>Semtler</button>
+    <button class="mob-btn" onclick="mobNav('hesap',this)"><span>🧮</span>Hesapla</button>
+    <button class="mob-btn" onclick="mobNav('sss',this)"><span>❓</span>SSS</button>
+  </div>
+</div>
+</div>
+
+<script>
+let API_KEY = '';
+let history = [];
+let isLoading = false;
+
+// Check saved key
+window.onload = function() {
+  API_KEY = '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';
+  launchApp();
+  buildFaq();
+};
+
+async function startApp() {
+  const key = document.getElementById('apikey-input').value.trim();
+  if (!key.startsWith('sk-ant')) {
+    document.getElementById('api-error').style.display = 'block';
+    return;
+  }
+  // Test key
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 10, messages: [{ role: 'user', content: 'hi' }] })
+    });
+    if (res.ok) {
+      API_KEY = key;
+      localStorage.setItem('relax_api_key', key);
+      launchApp();
+    } else {
+      document.getElementById('api-error').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('api-error').style.display = 'block';
+  }
+}
+
+function launchApp() {
+  document.getElementById('apiscreen').style.display = 'none';
+  document.getElementById('mainapp').style.display = 'block';
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.dataset.theme === 'dark';
+  html.dataset.theme = isDark ? 'light' : 'dark';
+  document.querySelector('.theme-btn').textContent = isDark ? '🌙' : '☀️';
+}
+
+function showPanel(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+}
+function mobNav(name, el) {
+  showPanel(name, null);
+  document.querySelectorAll('.mob-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+const SYSTEM = `Sen RE/LAX Yapay Zekâ Asistanısın. İstanbul'da 5 yıllık deneyimli gayrimenkul danışmanısın. Tapu işlemleri, yatırım analizi, konut kredisi, İstanbul bölge bilgisi, hukuki süreçler, vergi ve masraflar konularında uzmansın. Yanıtların kısa, net ve pratik olsun. Madde madde listele. Her zaman Türkçe yanıt ver.`;
+
+function addMsg(role, html) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : '');
+  div.innerHTML = `<div class="av ${role==='user'?'user':'ai'}">${role==='user'?'Siz':'RL'}</div><div class="bubble ${role==='user'?'user':'ai'}">${html}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div.querySelector('.bubble');
+}
+
+async function sendMessage(text) {
+  if (isLoading) return;
+  isLoading = true;
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+  const b = addMsg('ai', '<div class="typing-dots"><span></span><span></span><span></span></div>');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1000, system: SYSTEM, messages: history })
+    });
+    const data = await res.json();
+    const reply = data.content[0].text;
+    b.innerHTML = reply.replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    history.push({ role: 'assistant', content: reply });
+  } catch(e) { b.innerHTML = 'Bağlantı hatası. Lütfen tekrar deneyin.'; }
+  isLoading = false;
+}
+
+function handleSend() {
+  const inp = document.getElementById('chatinput');
+  const t = inp.value.trim();
+  if (t) { inp.value = ''; sendMessage(t); }
+}
+function chip(t) { sendMessage(t); }
+document.addEventListener('keydown', e => {
+  if (e.target.id === 'chatinput' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+});
+
+function fmt(n) { return '₺' + Math.round(n).toLocaleString('tr-TR'); }
+function calcTapu() {
+  const v = parseFloat(document.getElementById('t-bedel').value);
+  if (!v) return;
+  const pay = v * 0.02;
+  document.getElementById('t-alici').textContent = fmt(pay);
+  document.getElementById('t-satici').textContent = fmt(pay);
+  document.getElementById('t-toplam').textContent = fmt(pay * 2 + 1000);
+  document.getElementById('t-result').style.display = 'block';
+}
+function calcKira() {
+  const d = parseFloat(document.getElementById('k-deger').value);
+  const a = parseFloat(document.getElementById('k-aylik').value);
+  if (!d || !a) return;
+  const y = a * 12;
+  document.getElementById('k-yillik').textContent = fmt(y);
+  document.getElementById('k-getiri').textContent = '%' + (y/d*100).toFixed(2);
+  document.getElementById('k-geri').textContent = Math.round(d/y) + ' yıl';
+  document.getElementById('k-result').style.display = 'block';
+}
+function calcKredi() {
+  const P = parseFloat(document.getElementById('kr-tutar').value);
+  const r = parseFloat(document.getElementById('kr-faiz').value) / 100;
+  const n = parseInt(document.getElementById('kr-vade').value);
+  if (!P || !r || !n) return;
+  const t = P * (r * Math.pow(1+r,n)) / (Math.pow(1+r,n)-1);
+  document.getElementById('kr-taksit').textContent = fmt(t);
+  document.getElementById('kr-toplam').textContent = fmt(t*n);
+  document.getElementById('kr-faiz-toplam').textContent = fmt(t*n-P);
+  document.getElementById('kr-result').style.display = 'block';
+}
+
+function buildFaq() {
+  const faqs = [
+    { q: 'Tapu devri ne kadar sürer?', a: 'Randevu alındıktan sonra tapu müdürlüğündeki işlem 30–60 dakika sürer. Online randevu için webtapu.tkgm.gov.tr kullanılır.' },
+    { q: 'İskan olmayan ev alınır mı?', a: 'Alınabilir ancak önemli riskler taşır: banka konut kredisi vermez, belediyeye para cezası riski, tapu iptali davası açılabilir. Mutlaka hukuki danışmanlık alın.' },
+    { q: 'Konut kredisi için minimum gelir ne olmalı?', a: 'Genel kural: aylık taksit gelirinizin %50\'sini geçmemeli. Kredi notunuz minimum 1100 olmalı.' },
+    { q: 'Emlak komisyonu zorunlu mu?', a: 'Yasal oran satış bedelinin %2 + KDV\'sidir. Komisyon öncesinde yazılı sözleşme imzalamanız önemlidir.' },
+    { q: 'Yabancı uyruklu kişiler Türkiye\'de mülk alabilir mi?', a: 'Evet. Karşılıklılık ilkesi kapsamındaki ülke vatandaşları alabilir. 400.000 USD üzeri yatırım Türk vatandaşlığına hak kazandırır.' },
+    { q: 'Arsa yatırımı mı, konut mu?', a: 'Arsa uzun vadede daha yüksek getiri sunar ancak kira geliri yoktur. Konut hem kira hem değer artışı sağlar.' },
+    { q: 'Kentsel dönüşümden nasıl yararlanılır?', a: 'Riskli yapı tespiti yaptırmanız gerekir. Sonrasında kredi desteği, kira yardımı ve vergi muafiyeti avantajlarından yararlanabilirsiniz.' },
+    { q: 'Satış vaadi sözleşmesi nedir?', a: 'Noterde düzenlenen, satıcının satmayı alıcının satın almayı taahhüt ettiği sözleşmedir. Tapu kütüğüne şerh düşürülebilir.' },
+  ];
+  const el = document.getElementById('faq');
+  faqs.forEach(f => {
+    const d = document.createElement('div');
+    d.className = 'faq-item';
+    d.innerHTML = `<button class="faq-q" onclick="toggleFaq(this)"><span>${f.q}</span><span class="faq-icon">+</span></button><div class="faq-a"><div class="faq-a-inner">${f.a}</div></div>`;
+    el.appendChild(d);
+  });
+}
+function toggleFaq(btn) {
+  const item = btn.parentElement;
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(el => { el.classList.remove('open'); el.querySelector('.faq-a').style.maxHeight = '0'; });
+  if (!isOpen) { item.classList.add('open'); item.querySelector('.faq-a').style.maxHeight = item.querySelector('.faq-a-inner').scrollHeight + 'px'; }
+}
+</script>
+</body>
+</html>
